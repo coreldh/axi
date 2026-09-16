@@ -23,6 +23,8 @@ Every tool built on `runAxiCli()` also gets a built-in `update` self-update comm
 
 If your executable boundary needs to normalize loader-specific arguments before dispatch, pass `argv` explicitly to `runAxiCli()` instead of relying on `process.argv.slice(2)`.
 
+`runAxiCli()` treats an `EPIPE` from stdout as a normal exit, so pipelines whose downstream consumer closes early (for example, `my-axi list | head`) finish with exit code 0. Other stdout errors remain visible and fail normally.
+
 ## Quick Start
 
 ```sh
