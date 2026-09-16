@@ -17,6 +17,8 @@ export const RESERVED_COMMANDS = ["update"] as const;
 
 type MaybePromise<T> = T | Promise<T>;
 
+const stdoutWithErrorHandler = new WeakSet<object>();
+
 export type AxiCliCommand<TContext> = (
   args: string[],
   context: TContext | undefined,
@@ -165,14 +167,18 @@ function handleStdoutErrors(stdout: {
   write: (chunk: string) => unknown;
 }): void {
   const errorObservable = stdout as {
-    once?: (event: "error", listener: (error: unknown) => void) => unknown;
+    on?: (event: "error", listener: (error: unknown) => void) => unknown;
   };
 
-  if (typeof errorObservable.once !== "function") {
+  if (
+    typeof errorObservable.on !== "function" ||
+    stdoutWithErrorHandler.has(stdout)
+  ) {
     return;
   }
 
-  errorObservable.once("error", (error) => {
+  stdoutWithErrorHandler.add(stdout);
+  errorObservable.on("error", (error) => {
     if (
       typeof error === "object" &&
       error !== null &&

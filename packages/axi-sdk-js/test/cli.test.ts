@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { homedir } from "node:os";
@@ -136,6 +137,27 @@ describe("runAxiCli", () => {
 
     expect(initialize).toHaveBeenCalledTimes(1);
     expect(home).toHaveBeenCalledTimes(1);
+  });
+
+  it("installs one stdout error handler across repeated invocations", async () => {
+    const sharedStdout = new Writable({
+      write(_chunk, _encoding, callback) {
+        callback();
+      },
+    });
+
+    for (let invocation = 0; invocation < 11; invocation += 1) {
+      await runAxiCli({
+        argv: ["--help"],
+        description: "Manage GitHub state",
+        topLevelHelp: "top help",
+        home,
+        commands: { issue },
+        stdout: sharedStdout,
+      });
+    }
+
+    expect(sharedStdout.listenerCount("error")).toBe(1);
   });
 
   it("shows top-level help for bare --help without resolving context", async () => {
