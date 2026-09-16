@@ -75,6 +75,7 @@ export async function runAxiCli<TContext = undefined>(
   options: AxiCliOptions<TContext>,
 ): Promise<void> {
   const stdout = options.stdout ?? process.stdout;
+  handleStdoutErrors(stdout);
 
   try {
     await options.initialize?.();
@@ -158,6 +159,32 @@ export async function runAxiCli<TContext = undefined>(
   }
 
   await runHandler(handler, args, { command, args }, stdout, options, false);
+}
+
+function handleStdoutErrors(stdout: {
+  write: (chunk: string) => unknown;
+}): void {
+  const errorObservable = stdout as {
+    once?: (event: "error", listener: (error: unknown) => void) => unknown;
+  };
+
+  if (typeof errorObservable.once !== "function") {
+    return;
+  }
+
+  errorObservable.once("error", (error) => {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "EPIPE"
+    ) {
+      process.exitCode = 0;
+      return;
+    }
+
+    throw error;
+  });
 }
 
 async function runHandler<TContext>(
